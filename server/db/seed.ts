@@ -1,0 +1,96 @@
+import type Database from 'better-sqlite3';
+import { backfillUsageMetrics } from '../services/usage-service.js';
+
+const AGENTS = [
+  { id: 'research',  name: 'Scout',           title: 'Research Analyst',     icon: '🔍', avatar_seed: 'Scout',     default_model: 'gemini:2.5-pro', prompt: 'You are a research specialist. Analyze the given topic, identify market trends, competitors, and key insights. Output structured findings in markdown.' },
+  { id: 'product',   name: 'Compass',         title: 'Product Owner',        icon: '📋', avatar_seed: 'Compass',   default_model: 'claude:sonnet', prompt: 'You are an experienced product manager. Create a concise PRD with user stories, feature priorities, and success metrics.' },
+  { id: 'architect', name: 'Atlas',           title: 'Systems Architect',    icon: '🏗️', avatar_seed: 'Atlas',     default_model: 'claude:sonnet', prompt: 'You are a software architect. Design system architecture, choose appropriate tech stack, define API contracts and database schemas.' },
+  { id: 'designer',  name: 'Pixel',           title: 'UI/UX Designer',       icon: '🎨', avatar_seed: 'Pixel',     default_model: 'claude:sonnet', prompt: 'You are a UI/UX designer. Create detailed design specifications including component hierarchy, color system, and interaction patterns.' },
+  { id: 'developer', name: 'Forge',           title: 'Senior Developer',     icon: '💻', avatar_seed: 'Forge',     default_model: 'codex:codex-1', prompt: 'You are a senior full-stack developer. Write production-ready code based on the design spec. Include error handling and tests.' },
+  { id: 'seo',       name: 'Beacon',          title: 'SEO Specialist',       icon: '📈', avatar_seed: 'Beacon',    default_model: 'gemini:2.5-pro', prompt: 'You are an SEO specialist. Optimize content for search engines: meta tags, structured data, keyword placement.' },
+  { id: 'content',   name: 'Quill',           title: 'Content Writer',       icon: '✍️', avatar_seed: 'Quill',     default_model: 'gemini:2.5-flash', prompt: 'You are a copywriter. Write compelling, conversion-focused content. Match brand voice and include CTAs.' },
+  { id: 'qa',        name: 'Sentinel',        title: 'QA Engineer',          icon: '🧪', avatar_seed: 'Sentinel',  default_model: 'claude:sonnet', prompt: 'You are a QA engineer. Review outputs for quality, consistency, and correctness. Identify issues and suggest improvements.' },
+  { id: 'deploy',    name: 'Rocket',          title: 'DevOps Engineer',      icon: '🚀', avatar_seed: 'Rocket',    default_model: 'codex:codex-1', prompt: 'You are a DevOps engineer. Handle deployment pipeline: build, test, deploy to staging then production.' },
+];
+
+const PROVIDERS = [
+  { id: 'claude', label: 'Claude', color: '#D97706', bg: '#1C1208', cli_command: 'claude', sort_order: 0 },
+  { id: 'gemini', label: 'Gemini', color: '#3B82F6', bg: '#08111F', cli_command: 'gemini', sort_order: 1 },
+  { id: 'codex',  label: 'Codex',  color: '#22C55E', bg: '#071710', cli_command: 'codex',  sort_order: 2 },
+];
+
+const MODEL_DEFS = [
+  { id: 'claude:sonnet', provider: 'claude', label: 'Claude Sonnet', color: '#D97706', bg: '#1C1208', cost_per_1k: 0.015, cli_flag: 'claude-sonnet-4-6',           sort_order: 0 },
+  { id: 'claude:opus',   provider: 'claude', label: 'Claude Opus',   color: '#D97706', bg: '#1C1208', cost_per_1k: 0.075, cli_flag: 'claude-opus-4-7',             sort_order: 1 },
+  { id: 'claude:haiku',  provider: 'claude', label: 'Claude Haiku',  color: '#D97706', bg: '#1C1208', cost_per_1k: 0.001, cli_flag: 'claude-haiku-4-5-20251001',   sort_order: 2 },
+  { id: 'gemini:2.5-pro',  provider: 'gemini', label: 'Gemini 2.5 Pro',  color: '#3B82F6', bg: '#08111F', cost_per_1k: 0.00125, cli_flag: 'gemini-2.5-pro',   sort_order: 0 },
+  { id: 'gemini:2.5-flash', provider: 'gemini', label: 'Gemini 2.5 Flash', color: '#3B82F6', bg: '#08111F', cost_per_1k: 0.0003, cli_flag: 'gemini-2.5-flash', sort_order: 1 },
+  { id: 'codex:codex-1',  provider: 'codex', label: 'Codex 1',       color: '#22C55E', bg: '#071710', cost_per_1k: 0.020, cli_flag: 'codex-1',  sort_order: 0 },
+  { id: 'codex:gpt-5.4', provider: 'codex', label: 'GPT 5.4',      color: '#22C55E', bg: '#071710', cost_per_1k: 0.010, cli_flag: 'gpt-5.4', sort_order: 1 },
+  { id: 'codex:o4-mini',  provider: 'codex', label: 'o4 Mini',      color: '#22C55E', bg: '#071710', cost_per_1k: 0.005, cli_flag: 'o4-mini',  sort_order: 2 },
+  { id: 'codex:o3',      provider: 'codex', label: 'o3',            color: '#22C55E', bg: '#071710', cost_per_1k: 0.020, cli_flag: 'o3',       sort_order: 3 },
+];
+
+const DEFAULT_SETTINGS = [
+  { key: 'port', value: '3100' },
+  { key: 'execution_mode', value: 'cli' },
+  { key: 'max_parallel_tasks', value: '5' },
+  { key: 'default_task_timeout_ms', value: '1800000' },
+  { key: 'breakdown_timeout_ms', value: '600000' },
+  { key: 'cli_skip_permissions', value: 'true' },
+  { key: 'log_retention_days', value: '30' },
+  { key: 'worktree_isolation', value: 'true' },
+  { key: 'max_iterations', value: '3' },
+  { key: 'max_retries', value: '2' },
+  { key: 'pre_run_hook', value: '' },
+  { key: 'post_run_hook', value: '' },
+  { key: 'setup_completed', value: 'false' },
+  { key: 'working_directory', value: '' },
+  { key: 'approval_mode', value: 'manual' },
+  { key: 'auto_spawn_follow_ups', value: 'false' },
+  { key: 'max_spawned_tasks_per_completion', value: '10' },
+];
+
+export function seedDatabase(db: Database.Database): void {
+  // Always ensure default settings exist (INSERT OR IGNORE — safe for existing DBs)
+  const insertSetting = db.prepare(
+    'INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)'
+  );
+  for (const setting of DEFAULT_SETTINGS) {
+    insertSetting.run(setting.key, setting.value);
+  }
+
+  // Always seed providers & models (INSERT OR IGNORE — safe for existing DBs)
+  const insertProvider = db.prepare(
+    'INSERT OR IGNORE INTO providers (id, label, color, bg, cli_command, sort_order) VALUES (?, ?, ?, ?, ?, ?)'
+  );
+  for (const p of PROVIDERS) {
+    insertProvider.run(p.id, p.label, p.color, p.bg, p.cli_command, p.sort_order);
+  }
+
+  const insertModel = db.prepare(
+    'INSERT OR IGNORE INTO models (id, provider, label, color, bg, cost_per_1k, cli_flag, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+  );
+  for (const m of MODEL_DEFS) {
+    insertModel.run(m.id, m.provider, m.label, m.color, m.bg, m.cost_per_1k, m.cli_flag, m.sort_order);
+  }
+
+  backfillUsageMetrics(db);
+
+  // Seed the starter crew (Scout, Compass, Atlas, ...) on first run only.
+  // No demo pipelines — a fresh install opens an empty board.
+  const agentCount = db.prepare('SELECT COUNT(*) as count FROM agents').get() as { count: number };
+  if (agentCount.count > 0) return;
+
+  const insertAgent = db.prepare(
+    'INSERT INTO agents (id, name, icon, title, avatar_seed, default_model, prompt) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  );
+
+  const seedAgents = db.transaction(() => {
+    for (const agent of AGENTS) {
+      insertAgent.run(agent.id, agent.name, agent.icon, agent.title, agent.avatar_seed, agent.default_model, agent.prompt);
+    }
+  });
+
+  seedAgents();
+}
