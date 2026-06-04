@@ -1,9 +1,8 @@
 # Operant
 
-[![npm version](https://img.shields.io/npm/v/@rifat-simoom/operant.svg?label=npm&color=D97706)](https://www.npmjs.com/package/@rifat-simoom/operant)
+[![Release](https://img.shields.io/github/v/release/rifat-simoom/operant?display_name=tag&color=D97706)](https://github.com/rifat-simoom/operant/releases)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![CI](https://github.com/rifat-simoom/operant/actions/workflows/ci.yml/badge.svg)](https://github.com/rifat-simoom/operant/actions/workflows/ci.yml)
-[![Node.js Version](https://img.shields.io/node/v/@rifat-simoom/operant.svg)](https://nodejs.org)
+[![Node.js](https://img.shields.io/badge/node-%5E20.19.0%20%7C%7C%20%3E%3D22.12.0-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 
 Pipeline-based orchestration for AI coding agents. Build multi-step task
 graphs, run them with Claude Code, Codex, or Gemini CLI, and monitor the
@@ -12,6 +11,8 @@ whole workflow from a visual dashboard or over MCP.
 ![Operant pipeline board — five stages running across Claude, Codex, and Gemini side-by-side, each task in its own git worktree](docs/images/hero-pipeline-board.png)
 
 ## Run it
+
+After the first npm publish:
 
 ```bash
 npx @rifat-simoom/operant
@@ -39,7 +40,7 @@ You'll also need at least one supported AI CLI on your machine (see [Supported A
 - Git
 - At least one supported AI CLI installed locally
 
-### From npm (recommended)
+### From npm (after publish)
 
 ```bash
 # One-shot run, no install (slowest start, no global pollution)

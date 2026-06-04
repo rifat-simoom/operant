@@ -1,7 +1,7 @@
 ---
 title: "Why worktree isolation is load-bearing"
 subtitle: "A short technical explainer on why every Operant task gets its own git worktree, not just its own branch."
-author: Rifat Simoom Rient
+author: Rifat Simoom
 date: 2026-04-22
 status: draft
 parent: why-im-building-operant.md
